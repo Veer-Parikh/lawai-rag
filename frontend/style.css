@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap');
+
+/* Base configuration */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    color: #F0F4F8; /* Off-white for high contrast */
+    line-height: 1.7; /* Increased readability */
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Merriweather', serif !important;
+    color: #B7950B !important; /* Muted Brass/Gold */
+    font-weight: 400 !important;
+}
+
+/* App Backgrounds */
+.stApp {
+    background-color: #121820; /* Deep Charcoal/Slate */
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: #0d1218 !important; /* Slightly darker than main */
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-testid="stSidebar"] h1 {
+    font-size: 1.5rem !important;
+    margin-bottom: 2rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 1rem;
+}
+
+/* 
+ * The Briefcase (Right Context Column) 
+ */
+.context-panel {
+    background-color: rgba(30, 41, 59, 0.4); /* Translucent depth */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 24px; /* Increased padding */
+    margin-bottom: 15px;
+}
+
+.context-header {
+    font-family: 'Merriweather', serif;
+    color: #E2E8F0;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 8px;
+}
+
+/* Source Citation Cards */
+.source-card {
+    background-color: rgba(13, 18, 24, 0.6);
+    border-left: 3px solid #B7950B; /* Muted Gold accent */
+    border-top: 1px solid rgba(255, 255, 255, 0.02);
+    border-right: 1px solid rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    padding: 16px; /* Increased padding */
+    border-radius: 6px;
+    margin-bottom: 15px;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+.source-card:hover {
+    transform: translateX(4px);
+    background-color: rgba(30, 41, 59, 0.8);
+}
+.source-title {
+    font-weight: 600;
+    color: #F8FAFC;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+}
+.source-meta {
+    font-size: 0.85rem;
+    color: #94A3B8;
+}
+.source-score-badge {
+    float: right;
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* Telemetry Badges */
+.telemetry-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 0.8rem;
+    flex-wrap: wrap; /* allow wrapping on thin columns */
+}
+.tel-badge {
+    padding: 3px 10px;
+    border-radius: 16px;
+    background-color: rgba(30, 41, 59, 0.5); /* subtle background */
+    border: 1px solid rgba(255, 255, 255, 0.08); /* Minimal border */
+}
+
+/* Chat Input overriding (Glassmorphism) */
+.stChatInputContainer {
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    background-color: rgba(18, 24, 32, 0.7) !important;
+    backdrop-filter: blur(12px) !important;
+    padding-bottom: 2rem !important; /* Lift it slightly off the bottom */
+}
+
+.stChatInputContainer textarea {
+    color: #F8FAFC !important;
+}
+
+/* Distinct Custom Chat Message Containers */
+[data-testid="stChatMessage"] {
+    background-color: rgba(255,255,255, 0.015) !important;
+    padding: 1.5rem !important; /* Inner padding to pop boxes */
+    border-radius: 12px !important;
+    border: 1px solid rgba(255,255,255, 0.03);
+    margin-bottom: 1.5rem;
+}
+
+/* Subtly differentiate User Bubble */
+[data-testid="stChatMessage"]:nth-child(even) {
+    background-color: transparent !important; /* User prompt is bare/transparent */
+    border: none;
+    padding-bottom: 0 !important;
+    margin-bottom: 0.5rem;
+}
+
+/* For Assistant specific avatars */
+[data-testid="chatAvatarIcon-assistant"] {
+    background-color: #B7950B !important;
+    color: #121820 !important;
+}
+
+/* Primary Button overrides */
+button[kind="primary"] {
+    background-color: #B7950B !important;
+    color: #121820 !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    transition: all 0.2s;
+}
+button[kind="primary"]:hover {
+    background-color: #D4AF37 !important;
+    box-shadow: 0 0 12px rgba(183, 149, 11, 0.4);
+}
+
+/* Secondary Button (Ghost/Warning) */
+button[kind="secondary"] {
+    background-color: transparent !important;
+    color: #94A3B8 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease;
+}
+button[kind="secondary"]:hover {
+    color: #EF4444 !important; /* Red destruct */
+    border-color: #EF4444 !important;
+    background-color: rgba(239, 68, 68, 0.05) !important;
+}
+
+/* Accordion Expander Minimalist overrrides */
+.st-emotion-cache-p5msec, .st-emotion-cache-1cbkxj7 {
+    border-color: rgba(255,255,255, 0.05) !important;
+    background-color: rgba(30, 41, 59, 0.3) !important;
+}
