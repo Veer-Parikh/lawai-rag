@@ -11,7 +11,8 @@ import re
 import time
 from typing import Any
 
-import google.generativeai as genai
+# Heavy import moved inside functions to prevent blocking startup
+# import google.generativeai as genai
 
 import config
 from utils.logger import get_logger
@@ -28,18 +29,8 @@ _SECTION_REGEX = re.compile(
     re.IGNORECASE,
 )
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-
-_gemini_model = genai.GenerativeModel(
-    model_name=config.GEMINI_MODEL_NAME,
-    system_instruction=None,  # System prompt injected per-call for flexibility
-    generation_config=genai.types.GenerationConfig(
-        temperature=config.GEMINI_TEMPERATURE,
-        top_p=config.GEMINI_TOP_P,
-        max_output_tokens=config.GEMINI_MAX_OUTPUT_TOKENS,
-        response_mime_type="application/json",
-    ),
-)
+# Global for reuse after first lazy-load
+_genai_configured = False
 
 
 def _parse_gemini_json(raw_text: str) -> dict:
@@ -127,10 +118,17 @@ def generate_answer(
     """
     last_exc: Exception | None = None
 
+    global _genai_configured
+    import google.generativeai as genai
+
+    if not _genai_configured:
+        genai.configure(api_key=config.GEMINI_API_KEY)
+        _genai_configured = True
+
     for attempt in range(max_retries + 1):
         try:
             t0 = time.time()
-            response = genai.GenerativeModel(
+            model = genai.GenerativeModel(
                 model_name=config.GEMINI_MODEL_NAME,
                 system_instruction=system_prompt,
                 generation_config=genai.types.GenerationConfig(
@@ -139,7 +137,8 @@ def generate_answer(
                     max_output_tokens=config.GEMINI_MAX_OUTPUT_TOKENS,
                     response_mime_type="application/json",
                 ),
-            ).generate_content(user_prompt)
+            )
+            response = model.generate_content(user_prompt)
 
             latency_ms = int((time.time() - t0) * 1000)
             raw_text = response.text

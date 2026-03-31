@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from sentence_transformers import SentenceTransformer
+# Heavy import moved inside _get_model to prevent blocking startup
+# from sentence_transformers import SentenceTransformer
 
 import config
 from utils.logger import get_logger
@@ -17,7 +18,8 @@ logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=1)
-def _get_model() -> SentenceTransformer:
+def _get_model():
+    from sentence_transformers import SentenceTransformer
     logger.info(f"Loading embedding model: {config.EMBEDDING_MODEL_NAME}")
     model = SentenceTransformer(config.EMBEDDING_MODEL_NAME)
     return model
