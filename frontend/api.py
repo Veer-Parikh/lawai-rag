@@ -1,8 +1,9 @@
+import os
 import requests
 import json
 import streamlit as st
 
-BACKEND_URL = "http://localhost:8000"
+BACKEND_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 def chat_query(query: str, domain: str = None, top_k: int = 5):
     """
