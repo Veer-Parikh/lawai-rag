@@ -19,24 +19,30 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+import asyncio
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Warm up heavy singletons at startup so first request is fast."""
-    logger.info("Bharat Law API starting up — warming up models...")
-    # Pre-load embedding model and reranker into memory
-    try:
-        from ingestion.embedder import embed_query
-        embed_query("warm up")
-        logger.info("Embedding model loaded ✓")
-    except Exception as exc:
-        logger.warning(f"Embedding model warm-up failed: {exc}")
+    """Warm up heavy singletons in background so port binds immediately."""
+    def warmup_models():
+        logger.info("Bharat Law API starting up — warming up models...")
+        try:
+            from ingestion.embedder import embed_query
+            embed_query("warm up")
+            logger.info("Embedding model loaded ✓")
+        except Exception as exc:
+            logger.warning(f"Embedding model warm-up failed: {exc}")
 
-    try:
-        from retrieval.reranker import _get_reranker
-        _get_reranker()
-        logger.info("Reranker model loaded ✓")
-    except Exception as exc:
-        logger.warning(f"Reranker warm-up failed: {exc}")
+        try:
+            from retrieval.reranker import _get_reranker
+            _get_reranker()
+            logger.info("Reranker model loaded ✓")
+        except Exception as exc:
+            logger.warning(f"Reranker warm-up failed: {exc}")
+
+    # Run the heavy downloading/loading in a background thread 
+    # so uvicorn can instantly bind the port and start accepting traffic
+    asyncio.get_running_loop().run_in_executor(None, warmup_models)
 
     logger.info("Bharat Law API ready.")
     yield
