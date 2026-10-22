@@ -11,8 +11,41 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.routers.documents import register_document
+from legal.documents import DocumentStatus, LegalDocument, ProvisionVersion
+from datetime import date
 
 client = TestClient(app, raise_server_exceptions=False)
+
+
+def test_document_compare_endpoint_returns_change_summary():
+    register_document(
+        LegalDocument(
+            document_id="integration-old",
+            title="Old",
+            act_code="OLD",
+            source_url="https://example.test/old",
+            publisher="Gazette",
+            status=DocumentStatus.SUPERSEDED,
+            provisions=[ProvisionVersion("old-1", "1", "One", "old", date(2020, 1, 1))],
+        )
+    )
+    register_document(
+        LegalDocument(
+            document_id="integration-new",
+            title="New",
+            act_code="NEW",
+            source_url="https://example.test/new",
+            publisher="India Code",
+            status=DocumentStatus.IN_FORCE,
+            provisions=[ProvisionVersion("new-1", "1", "One", "new", date(2024, 7, 1))],
+        )
+    )
+
+    response = client.get("/documents/integration-old/compare/integration-new")
+
+    assert response.status_code == 200
+    assert response.json()["changed_sections"] == ["1"]
 
 # ── Shared mock chunk ─────────────────────────────────────────────────────────
 MOCK_CHUNK = {
@@ -61,7 +94,9 @@ def test_chat_high_confidence_success(mock_genai, mock_reranker, mock_embedder, 
     mock_match = MagicMock()
     mock_match.id = "test-chunk-001"
     mock_match.score = 0.87
-    mock_match.metadata = {k: v for k, v in MOCK_CHUNK.items() if k != "chunk_id"}
+    mock_match.metadata = {
+        k: v for k, v in MOCK_CHUNK.items() if k not in {"chunk_id", "score"}
+    }
     mock_index.return_value.query.return_value = MagicMock(matches=[mock_match])
 
     # Mock reranker
@@ -92,6 +127,36 @@ def test_chat_high_confidence_success(mock_genai, mock_reranker, mock_embedder, 
 def test_chat_query_too_short():
     response = client.post("/chat", json={"query": "hi"})
     assert response.status_code == 422  # Pydantic min_length validation
+
+
+@patch("retrieval.pinecone_retriever._get_index")
+@patch("ingestion.embedder._get_model")
+@patch("retrieval.reranker._get_reranker")
+def test_chat_low_confidence_abstains_without_llm(
+    mock_reranker, mock_embedder, mock_index
+):
+    mock_model = MagicMock()
+    mock_model.encode.return_value = [[0.1] * 768]
+    mock_embedder.return_value = mock_model
+
+    mock_match = MagicMock()
+    mock_match.id = "weak-chunk"
+    mock_match.score = 0.2
+    mock_match.metadata = {
+        k: v for k, v in MOCK_CHUNK.items() if k not in {"chunk_id", "score"}
+    }
+    mock_index.return_value.query.return_value = MagicMock(matches=[mock_match])
+
+    mock_cross_enc = MagicMock()
+    mock_cross_enc.predict.return_value = [0.2]
+    mock_reranker.return_value = mock_cross_enc
+
+    with patch("llm.gemini_client.generate_answer") as generate_answer:
+        response = client.post("/chat", json={"query": "What changed?"})
+
+    assert response.status_code == 200
+    assert response.json()["confidence_tier"] == "LOW"
+    generate_answer.assert_not_called()
 
 
 def test_chat_missing_query():

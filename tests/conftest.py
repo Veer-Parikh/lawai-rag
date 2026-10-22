@@ -1,10 +1,31 @@
 """tests/conftest.py — Shared fixtures for all tests."""
 from __future__ import annotations
 
+import os
+import tempfile
+
+# Keep test runs out of the real logs and stores. Must run before `config`
+# is imported (load_dotenv never overrides variables that are already set).
+_TEST_STATE = tempfile.mkdtemp(prefix="lawai-tests-")
+os.environ["EVAL_LOG_PATH"] = os.path.join(_TEST_STATE, "eval.jsonl")
+os.environ["FEEDBACK_LOG_PATH"] = os.path.join(_TEST_STATE, "feedback.jsonl")
+os.environ["CATALOG_PATH"] = os.path.join(_TEST_STATE, "catalog.sqlite3")
+os.environ["INGESTION_LEDGER_PATH"] = os.path.join(_TEST_STATE, "ledger.sqlite3")
+os.environ["CROSSWALK_PATH"] = os.path.join(_TEST_STATE, "crosswalk.sqlite3")
+os.environ["CHANGE_LOG_PATH"] = os.path.join(_TEST_STATE, "change_log.sqlite3")
+os.environ["SOURCE_SNAPSHOT_PATH"] = os.path.join(_TEST_STATE, "source_refresh.sqlite3")
+os.environ["WORKSPACE_PATH"] = os.path.join(_TEST_STATE, "workspace.sqlite3")
+os.environ["REVIEW_QUEUE_PATH"] = os.path.join(_TEST_STATE, "review_queue.sqlite3")
+os.environ["REVIEWED_EVAL_DATASET"] = os.path.join(_TEST_STATE, "evals", "reviewed-cases.json")
+
 import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.middleware import limiter
+
+# Rate limits are per client IP; every TestClient request shares one.
+limiter.enabled = False
 
 
 @pytest.fixture(scope="session")

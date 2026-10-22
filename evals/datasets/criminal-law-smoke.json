@@ -1,0 +1,21 @@
+[
+  {
+    "id": "commencement-bns-2024",
+    "category": "commencement",
+    "question": "When did most provisions of the Bharatiya Nyaya Sanhita, 2023 come into force?",
+    "jurisdiction": "IN",
+    "as_of": "2024-07-01",
+    "expected_source_ids": ["mha-bns-commencement-so-850-e"],
+    "expected_anchors": ["section 1", "1 July 2024"],
+    "must_abstain": false
+  },
+  {
+    "id": "unanswerable-state-law",
+    "category": "unanswerable",
+    "question": "What is the current criminal procedure rule in every Indian state?",
+    "jurisdiction": "IN",
+    "expected_source_ids": [],
+    "expected_anchors": [],
+    "must_abstain": true
+  }
+]

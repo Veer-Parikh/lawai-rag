@@ -16,6 +16,7 @@ import uuid
 from typing import TypedDict
 
 from config import STATUTE_MAX_TOKENS
+from legal.provisions import ParsedSection, parse_sections
 from utils.text_cleaner import clean_text, normalize_section_header
 from utils.logger import get_logger
 
@@ -89,6 +90,11 @@ def chunk_statute(
     splits = list(_SECTION_PATTERN.finditer(full_text))
 
     if not splits:
+        # Bare-act layouts ("103. Punishment for murder.—", Gazette marginal
+        # notes) have no "Section N" header lines; split on section numbers.
+        parsed = parse_sections([p["raw_text"] for p in pages])
+        if parsed:
+            return _chunks_from_parsed(parsed, act_name)
         logger.warning(f"No section headers found in '{act_name}'. Falling back to hard split.")
         return _fallback_chunk(full_text, act_name)
 
@@ -142,6 +148,31 @@ def chunk_statute(
 
     logger.info(f"Statute '{act_name}': {len(raw_sections)} sections → {len(all_chunks)} chunks")
     return all_chunks
+
+
+def _chunks_from_parsed(sections: list[ParsedSection], act_name: str) -> list[RawChunk]:
+    chunks: list[RawChunk] = []
+    for section in sections:
+        heading = f"Section {section.number}" + (f". {section.heading}" if section.heading else "")
+        body = clean_text(section.text)
+        text = f"{heading}\n{body}"
+        pieces = (
+            [text]
+            if _approx_tokens(text) <= STATUTE_MAX_TOKENS
+            else _hard_split(heading, body, STATUTE_MAX_TOKENS)
+        )
+        for piece in pieces:
+            chunks.append(
+                RawChunk(
+                    chunk_id=str(uuid.uuid4()),
+                    text=piece,
+                    section_number=section.number,
+                    section_heading=heading,
+                    chunk_index=len(chunks),
+                )
+            )
+    logger.info(f"Statute '{act_name}': {len(sections)} numbered sections → {len(chunks)} chunks")
+    return chunks
 
 
 def _fallback_chunk(full_text: str, act_name: str) -> list[RawChunk]:

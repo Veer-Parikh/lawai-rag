@@ -61,4 +61,5 @@ def embed_query(query: str) -> list[float]:
     model = _get_model()
     prefixed = f"Represent this sentence for searching relevant passages: {query}"
     embedding = model.encode([prefixed], normalize_embeddings=True)
-    return embedding[0].tolist()
+    vector = embedding[0]
+    return vector.tolist() if hasattr(vector, "tolist") else list(vector)

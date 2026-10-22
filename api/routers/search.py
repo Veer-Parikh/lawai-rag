@@ -7,6 +7,7 @@ or building a "browse legal documents" frontend feature.
 from __future__ import annotations
 
 import time
+from datetime import date
 
 from fastapi import APIRouter, Query
 
@@ -15,6 +16,7 @@ from ingestion.embedder import embed_query
 from retrieval.domain_router import classify_query
 from retrieval.pinecone_retriever import retrieve
 from retrieval.reranker import rerank
+from retrieval.service import retrieve_hybrid_candidates
 from utils.logger import get_logger
 
 router = APIRouter()
@@ -27,6 +29,7 @@ async def search(
     domain: str | None = Query(None, description="Domain override"),
     top_k: int = Query(10, ge=1, le=50),
     rerank_results: bool = Query(True, description="Apply cross-encoder reranking"),
+    as_of: date | None = Query(None, description="Historical legal status date"),
 ) -> SearchResponse:
     t_start = time.time()
 
@@ -45,6 +48,12 @@ async def search(
         query_vector=query_vector,
         namespaces=domain_result.namespaces,
         top_k=top_k * 2,  # over-fetch for reranking
+    )
+    raw_chunks = retrieve_hybrid_candidates(
+        q,
+        raw_chunks,
+        top_n=top_k * 2,
+        as_of=as_of,
     )
 
     # Optional reranking

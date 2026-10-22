@@ -7,6 +7,7 @@ and append them with a [CROSS-REFERENCE] label.
 """
 from __future__ import annotations
 
+from html import escape
 from typing import Any
 
 import config
@@ -71,7 +72,7 @@ def _format_source_tag(chunk: dict) -> str:
     if doc_type:
         parts.append(f"{domain} | {doc_type}")
 
-    return " | ".join(parts) if parts else "Unknown Source"
+    return escape(" | ".join(parts) if parts else "Unknown Source")
 
 
 def build_context(
@@ -124,7 +125,7 @@ def build_context(
         source_tag = _format_source_tag(chunk)
         is_xref = chunk.get("is_cross_ref", False)
         label = f"Chunk {i + 1}" + (" [CROSS-REFERENCE]" if is_xref else "")
-        text = chunk.get("text", "")
+        text = escape(str(chunk.get("text", "")))
 
         lines.append(f"<{label}>")
         lines.append(f"[SOURCE: {source_tag}]")

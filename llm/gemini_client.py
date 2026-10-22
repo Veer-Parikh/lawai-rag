@@ -7,27 +7,21 @@ validates citations against retrieved metadata, and strips unverifiable ones.
 from __future__ import annotations
 
 import json
-import re
 import time
 from typing import Any
 
 # Heavy import moved inside functions to prevent blocking startup
-# import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:  # pragma: no cover - optional until the first LLM call
+    genai = None
 
 import config
 from utils.logger import get_logger
 from utils.exceptions import GeminiError
+from llm.citation_audit import audit_answer_citations
 
 logger = get_logger(__name__)
-
-# Indian legal citation regex patterns
-_CITATION_REGEX = re.compile(
-    r"(?:AIR\s+\d{4}\s+SC\s+\d+|\(\d{4}\)\s+\d+\s+SCC\s+\d+|JT\s+\d{4}\s+\(\d+\)\s+SC\s+\d+)"
-)
-_SECTION_REGEX = re.compile(
-    r"(?:Section|Article|Clause)\s+\d+[\w\.\-]*(?:,\s*[\w\s]+)?",
-    re.IGNORECASE,
-)
 
 # Global for reuse after first lazy-load
 _genai_configured = False
@@ -86,10 +80,6 @@ def _validate_citations(
         if any(ref_low in src or src in ref_low for src in known_sources):
             valid.append(ref)
             continue
-        # Check B: matches known Indian legal format
-        if _CITATION_REGEX.search(ref) or _SECTION_REGEX.search(ref):
-            valid.append(ref)
-            continue
         # Neither check passed — strip it
         warnings.append(f"Removed unverifiable citation: {ref}")
         logger.warning(f"Citation validation failed: '{ref}'")
@@ -119,7 +109,9 @@ def generate_answer(
     last_exc: Exception | None = None
 
     global _genai_configured
-    import google.generativeai as genai
+    global genai
+    if genai is None:
+        import google.generativeai as genai
 
     if not _genai_configured:
         genai.configure(api_key=config.GEMINI_API_KEY)
@@ -159,6 +151,8 @@ def generate_answer(
             valid_sections, citation_warnings = _validate_citations(
                 relevant_sections, chunks
             )
+            citation_audit = audit_answer_citations(answer, chunks)
+            citation_warnings.extend(citation_audit.warnings)
 
             # Token usage
             tokens_used = 0
@@ -178,6 +172,16 @@ def generate_answer(
                 "legal_explanation": legal_explanation,
                 "disclaimer": disclaimer,
                 "citation_warnings": citation_warnings,
+                "citations": [
+                    {
+                        "text": reference.text,
+                        "verified": reference.verified,
+                        "source_chunk_ids": reference.source_chunk_ids,
+                        "source_urls": reference.source_urls,
+                        "page_anchors": reference.page_anchors,
+                    }
+                    for reference in citation_audit.references
+                ],
                 "tokens_used": tokens_used,
             }
 

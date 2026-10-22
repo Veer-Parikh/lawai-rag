@@ -1,8 +1,14 @@
 # Bharat Law 🏛️
 
-Production-grade RAG-based legal chatbot for Indian law.
+Evidence-first India Criminal-Law Change Monitor.
 
-**Stack:** FastAPI · Gemini 2.5 Flash · BGE-base-en · BAAI/bge-reranker-base · Pinecone Serverless
+**Current stack:** FastAPI · Gemini 2.5 Flash · BGE-base-en · BAAI/bge-reranker-base · Pinecone Serverless  
+**Target architecture:** Next.js · BM25 + HNSW + RRF · versioned legal evidence · OpenTelemetry-compatible observability
+
+The first release is intentionally bounded to BNS, BNSS, BSA, their historical
+IPC/CrPC/Indian Evidence Act crosswalks, and directly related central
+commencement/amendment instruments. It prioritizes source provenance,
+effective-date correctness, and visible abstention over unsupported fluency.
 
 ---
 
@@ -10,6 +16,7 @@ Production-grade RAG-based legal chatbot for Indian law.
 
 ### 1. Install dependencies
 ```bash
+python -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 # Also install Tesseract binary for OCR (optional, for scanned PDFs):
 # Windows: https://github.com/UB-Mannheim/tesseract/wiki
@@ -49,8 +56,18 @@ API docs available at: [http://localhost:8000/docs](http://localhost:8000/docs)
 | `GET` | `/health` | Liveness + dependency check |
 | `POST` | `/chat` | Full RAG Q&A with Gemini |
 | `GET` | `/search` | Raw retrieval (no LLM) |
-| `POST` | `/admin/ingest` | Trigger ingestion job |
-| `GET` | `/admin/ingest/status/{job_id}` | Check job status |
+| `POST` | `/auth/demo` | One-click demo session (researcher role) |
+| `POST` | `/auth/admin` | Admin session from `ADMIN_PASSWORD` |
+| `GET` | `/auth/me` | Current session |
+| `POST` | `/feedback` | Rate an answer (signed in; stores a query hash only) |
+| `GET` | `/documents` | List document versions in the legal catalog |
+| `POST` | `/admin/ingest` | Ingest a file or folder inside `DATA_DIR` (admin) |
+| `GET` | `/admin/ingest/status/{job_id}` | Job status with live progress (admin) |
+| `GET` | `/admin/ingest/jobs` | Jobs since API start (admin) |
+| `GET` | `/admin/corpus` | Files, provenance, ingestion status, history (admin) |
+| `POST` | `/admin/corpus/upload` | Upload a PDF into a corpus folder (admin) |
+| `GET` | `/admin/analytics?days=14` | Usage, quality and latency analytics (admin) |
+| `GET` | `/admin/index` | Pinecone vector counts per namespace (admin) |
 
 ### Example `/chat` request
 ```json
@@ -105,7 +122,22 @@ lawai-rag/
 │   │   └── admin.py       # Ingestion trigger
 │   └── schemas/
 ├── observability/
-│   └── eval_logger.py     # Append-only JSONL eval log
+│   ├── eval_logger.py     # Compatibility JSONL metrics log
+│   ├── eval_metrics.py    # Dependency-free retrieval metrics
+│   └── tracing.py         # OpenTelemetry-compatible local trace contract
+├── legal/
+│   └── evidence.py        # Version-aware status and source authority model
+├── evals/
+│   ├── datasets/          # Versioned evaluation cases
+│   └── run_eval.py        # Offline evaluation runner
+├── frontend-next/         # Next.js lawyer research workspace
+├── skills/                # Agent operating contracts
+│   ├── copilot-instructions.md
+│   ├── decisions.md
+│   ├── frontend.md
+│   ├── backend.md
+│   └── rag.md
+├── docs/superpowers/specs/ # Approved product design
 ├── utils/
 │   ├── logger.py
 │   ├── text_cleaner.py
@@ -146,15 +178,31 @@ pytest tests/ -v
 
 ---
 
+## Web app, sign-in and admin console
+
+```bash
+cd frontend-next && npm install && npm run dev   # http://localhost:3000
+```
+
+- **Demo login:** "Continue as demo researcher" on `/login` opens the research
+  workspace. Turn it off with `DEMO_LOGIN_ENABLED=false`.
+- **Admin login:** set `ADMIN_PASSWORD` (and `AUTH_SECRET`, so sessions survive
+  restarts) in `.env`, then sign in as administrator. Admins get
+  `/admin` (usage, abstention rate, latency, feedback, API traffic) and
+  `/admin/corpus` (upload PDFs, see which files are searchable, run or test-run
+  ingestion with live progress, see sources that failed to download).
+
+Auth is demo-grade: signed tokens, no user database. See `skills/decisions.md`.
+
 ## Admin API
 
-Trigger ingestion via HTTP (requires `X-Admin-Key` header):
+Trigger ingestion via HTTP with an admin bearer token, or the `X-Admin-Key` header:
 
 ```bash
 curl -X POST http://localhost:8000/admin/ingest \
   -H "X-Admin-Key: your_admin_key" \
   -H "Content-Type: application/json" \
-  -d '{"target_path": "data/supreme_court_judgments/2025", "doc_type": "judgment"}'
+  -d '{"target_path": "judgments/supreme_court", "doc_type": "judgment"}'
 ```
 
 ---

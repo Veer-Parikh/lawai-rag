@@ -54,9 +54,9 @@ def assess(chunks: list[dict[str, Any]]) -> AssessmentResult:
     top_score = float(chunks[0].get("score", 0.0))
 
     # Determine tier
-    if top_score >= 0.72:
+    if top_score >= config.CONFIDENCE_HIGH_THRESHOLD:
         tier = ConfidenceTier.HIGH
-    elif top_score >= 0.50:
+    elif top_score >= config.CONFIDENCE_LOW_THRESHOLD:
         tier = ConfidenceTier.MEDIUM
     else:
         tier = ConfidenceTier.LOW
@@ -97,6 +97,7 @@ def build_low_confidence_response() -> dict:
             "legal advice. Consult a qualified lawyer for your specific situation."
         ),
         "citation_warnings": [],
+        "citations": [],
         "confidence_tier": ConfidenceTier.LOW.value,
         "sources": [],
     }

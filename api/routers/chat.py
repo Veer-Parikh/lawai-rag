@@ -12,7 +12,12 @@ import time
 
 from fastapi import APIRouter
 
-from api.schemas.chat_schema import ChatRequest, ChatResponse, SourceChunk
+from api.schemas.chat_schema import (
+    ChatRequest,
+    ChatResponse,
+    CitationReference,
+    SourceChunk,
+)
 from ingestion.embedder import embed_query
 from llm.gemini_client import generate_answer
 from llm.prompt_builder import build_prompt, get_system_prompt
@@ -22,6 +27,7 @@ from retrieval.domain_router import classify_query
 from retrieval.pinecone_retriever import retrieve
 from retrieval.query_rewriter import add_to_session, rewrite_query
 from retrieval.reranker import rerank
+from retrieval.service import retrieve_hybrid_candidates
 from retrieval.retrieval_quality_assessor import (
     ConfidenceTier,
     assess,
@@ -63,6 +69,12 @@ async def chat(request: ChatRequest) -> ChatResponse:
         query_vector=query_vector,
         namespaces=domain_result.namespaces,
     )
+    raw_chunks = retrieve_hybrid_candidates(
+        query,
+        raw_chunks,
+        top_n=max(request.top_k * 2, 10),
+        as_of=request.as_of,
+    )
 
     # ── Step 5: Rerank ─────────────────────────────────────────────────────────
     # Cap chunks sent to cross-encoder to heavily optimize local CPU latency
@@ -71,10 +83,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
     # ── Step 6: Confidence assessment ─────────────────────────────────────────
     assessment = assess(reranked)
 
-    # Only hard-block the LLM if the vector DB returned literally nothing.
-    # If chunks exist but scored LOW (e.g. a general "what is IPC?" question),
-    # we still pass them to the LLM and let its Indian-law knowledge fill the gap.
-    if len(reranked) == 0:
+    # Do not let model memory fill an evidence gap in a legal workflow.
+    if not reranked or assessment.tier is ConfidenceTier.LOW:
         latency_ms = int((time.time() - t_start) * 1000)
         log_request(
             query_hash=query_hash,
@@ -127,15 +137,33 @@ async def chat(request: ChatRequest) -> ChatResponse:
     sources = [
         SourceChunk(
             chunk_id=c.get("chunk_id", ""),
+            document_id=c.get("document_id"),
+            document_hash=c.get("document_hash"),
             source_file=c.get("source_file", ""),
+            source_url=c.get("source_url"),
+            publisher=c.get("publisher"),
+            source_authority=c.get("source_authority"),
+            retrieved_at=c.get("retrieved_at"),
+            language=c.get("language"),
+            extraction_status=c.get("extraction_status"),
+            conflict_state=c.get("conflict_state"),
             doc_type=c.get("doc_type", ""),
             act_name=c.get("act_name"),
             case_name=c.get("case_name"),
             citation=c.get("citation"),
             section=c.get("section_number"),
+            publication_date=c.get("publication_date"),
+            effective_date=c.get("effective_date"),
+            effective_until=c.get("effective_until"),
+            legal_status=c.get("legal_status"),
+            page_anchor=c.get("page_anchor"),
             score=float(c.get("score", 0.0)),
         )
         for c in all_chunks
+    ]
+    citations = [
+        CitationReference(**citation)
+        for citation in llm_result["citations"]
     ]
 
     latency_ms = int((time.time() - t_start) * 1000)
@@ -168,6 +196,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         legal_explanation=llm_result["legal_explanation"],
         disclaimer=llm_result["disclaimer"],
         citation_warnings=llm_result["citation_warnings"],
+        citations=citations,
         confidence_tier=assessment.tier.value,
         sources=sources,
         domain_detected=",".join(domain_result.domains),

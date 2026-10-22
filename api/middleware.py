@@ -14,9 +14,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 import config
+from observability.tracing import TraceRecorder
+from api.routers.metrics import metrics
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+trace_recorder = TraceRecorder()
 
 # Rate limiter (keyed by client IP)
 limiter = Limiter(key_func=get_remote_address, default_limits=[config.API_RATE_LIMIT])
@@ -44,9 +47,20 @@ def register_middleware(app: FastAPI) -> None:
         request_id = str(uuid.uuid4())[:8]
         t_start = time.time()
 
-        response = await call_next(request)
+        with trace_recorder.span(
+            f"http.{request.method.lower()}",
+            trace_id=request_id,
+            attributes={"path": request.url.path},
+        ):
+            response = await call_next(request)
 
         latency_ms = int((time.time() - t_start) * 1000)
+        route_path = getattr(request.scope.get("route"), "path", request.url.path)
+        metrics.increment(
+            "http_requests_total",
+            {"method": request.method, "route": route_path, "status": str(response.status_code)},
+        )
+        metrics.observe("http_latency_ms", latency_ms, {"route": route_path})
         logger.info(
             f"[{request_id}] {request.method} {request.url.path} "
             f"→ {response.status_code} ({latency_ms}ms)"

@@ -1,5 +1,5 @@
 # Bharat Law — RAG Legal Chatbot
-
+.github
 # Python
 __pycache__/
 *.py[cod]
@@ -44,3 +44,8 @@ Thumbs.db
 htmlcov/
 
 data
+
+# Local isolated worktrees
+.worktrees/
+frontend-next/node_modules/
+frontend-next/tsconfig.tsbuildinfo

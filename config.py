@@ -88,7 +88,26 @@ DATA_DIR: str = os.getenv("DATA_DIR", "data")
 # ─── Observability ────────────────────────────────────────────────────────────
 EVAL_LOG_PATH: str = os.getenv("EVAL_LOG_PATH", "observability/eval.jsonl")
 
+CATALOG_PATH: str = os.getenv("CATALOG_PATH", "data/catalog.sqlite3")
+CROSSWALK_PATH: str = os.getenv("CROSSWALK_PATH", "data/crosswalk.sqlite3")
+CHANGE_LOG_PATH: str = os.getenv("CHANGE_LOG_PATH", "data/change_log.sqlite3")
+SOURCE_SNAPSHOT_PATH: str = os.getenv("SOURCE_SNAPSHOT_PATH", "data/source_refresh.sqlite3")
+WORKSPACE_PATH: str = os.getenv("WORKSPACE_PATH", "data/workspace.sqlite3")
+REVIEW_QUEUE_PATH: str = os.getenv("REVIEW_QUEUE_PATH", "data/review_queue.sqlite3")
+REVIEWED_EVAL_DATASET: str = os.getenv("REVIEWED_EVAL_DATASET", "evals/datasets/reviewed-cases.json")
+CHANGE_WATCH_INTERVAL_HOURS: float = float(os.getenv("CHANGE_WATCH_INTERVAL_HOURS", "0"))
+INGESTION_LEDGER_PATH: str = os.getenv("INGESTION_LEDGER_PATH", "data/ingestion_ledger.sqlite3")
+FEEDBACK_LOG_PATH: str = os.getenv("FEEDBACK_LOG_PATH", "observability/feedback.jsonl")
+
 # ─── API ──────────────────────────────────────────────────────────────────────
 API_RATE_LIMIT: str = "30/minute"
 ADMIN_API_KEY: str = os.getenv("ADMIN_API_KEY", "")
 CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
+
+# ─── Auth (demo-grade: signed bearer tokens, no user database) ───────────────
+# AUTH_SECRET signs session tokens. When unset, a per-process secret is used,
+# so every API restart signs everyone out.
+AUTH_SECRET: str = os.getenv("AUTH_SECRET", "")
+ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
+AUTH_TOKEN_TTL_HOURS: int = int(os.getenv("AUTH_TOKEN_TTL_HOURS", "12"))
+DEMO_LOGIN_ENABLED: bool = os.getenv("DEMO_LOGIN_ENABLED", "true").lower() == "true"

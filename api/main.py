@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from api.middleware import register_middleware
-from api.routers import admin, chat, health, search
+from api.routers import admin, admin_legal, admin_review, auth, changes, chat, documents, feedback, health, legal, matters, metrics, search
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
     # Run the heavy downloading/loading in a background thread 
     # so uvicorn can instantly bind the port and start accepting traffic
     asyncio.get_running_loop().run_in_executor(None, warmup_models)
+    changes.start_periodic_watch()
 
     logger.info("Bharat Law API ready.")
     yield
@@ -63,9 +64,19 @@ def create_app() -> FastAPI:
 
     # Mount routers
     app.include_router(health.router, tags=["Health"])
+    app.include_router(auth.router, tags=["Auth"])
+    app.include_router(feedback.router, tags=["Feedback"])
     app.include_router(chat.router, tags=["Chat"])
     app.include_router(search.router, tags=["Search"])
+    app.include_router(documents.router, tags=["Documents"])
+    app.include_router(legal.router, tags=["Legal reference"])
+    app.include_router(changes.router, tags=["Changes"])
+    app.include_router(matters.router, tags=["Matters"])
+    app.include_router(metrics.router, tags=["Observability"])
     app.include_router(admin.router, tags=["Admin"])
+    app.include_router(admin_legal.router, tags=["Admin"])
+    app.include_router(changes.admin_router, tags=["Admin"])
+    app.include_router(admin_review.router, tags=["Admin"])
 
     return app
 
